@@ -3,6 +3,7 @@ import json
 from SPARQLWrapper import SPARQLWrapper, JSON
 import datefinder
 import datetime
+import pandas
 
 LIST_PREFIX = 'http://dbpedia.org/resource/List_of'
 DATA_FILE = 'players.txt'
@@ -37,24 +38,40 @@ def birthdate_from_player(player):
     """Return the birthdate as a datetime.  Naively grab the first match if
     there isn't an actual birthdate."""
     try:
-        return datetime.datetime.strptime()
+        return datetime.datetime.strptime(
+            player['birthdate']['value'], '%Y-%m-%d')
     except:
         matches = datefinder.find_dates(abstract)
         if matches:
-            return matches[0]
+            return list(matches)[0]
         else:
             return None
 
 
+def make_birthdate_present(birthdate):
+    """Make a birthdate be in 2016 for more easy grouping"""
+    try:
+        return datetime.datetime(2016, birthdate.month, birthdate.day)
+    except:
+        return None
+
+
 def process_data():
-    """Pulls out dataframe
+    """Pulls out dataframe from the file"""
+    with open(DATA_FILE) as file_in:
+        res = json.load(file_in)
+    players = []
+    for player in res:
+        players.append({
+            'name': player['name']['value'],
+            'birthdate': birthdate_from_player(player)
+            })
+    df = pandas.DataFrame(players)
+    df['birthdate_2016'] = df['birthdate'].apply(make_birthdate_present)
+    return df
 
 if __name__ == '__main__':
     if not os.path.isfile(DATA_FILE):
         pull_data()
-
-
-#No: Doesn't get http://dbpedia.org/page/Ossie_Asmundson because dbpedia doesn't know he is a person?
-'''
-?player a dbpedia:Person .
-'''
+    df = process_data()
+    print(df.head())
